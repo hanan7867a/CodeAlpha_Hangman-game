@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hangman Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+     <link rel="stylesheet" href="static/hang-man.css">
+</head>
+<body class="flex flex-col min-h-screen">
+    
+    <nav class="bg-gray-900 p-4 shadow-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-yellow-400">Hangman</h1>
+            <div class="space-x-4">
+                <button id="home-button" class="text-white hover:text-yellow-400">Home</button>
+                <button id="how-to-play-button" class="text-white hover:text-yellow-400">How to Play</button>
+            </div>
+        </div>
+    </nav>
+
+
+    <div class="container mx-auto flex-grow flex items-center justify-center py-8">
+       
+        <div id="menu-screen" class="text-center">
+            <h2 class="text-4xl font-bold mb-8 text-yellow-400 drop-shadow-lg">Welcome to Hangman</h2>
+            <button id="start-game-button" class="bg-yellow-400 text-gray-900 px-6 py-3 rounded-lg font-semibold hover:bg-yellow-500 transition">Start Game</button>
+            <button id="menu-how-to-play-button" class="bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-600 transition mt-4">How to Play</button>
+        </div>
+
+      
+        <div id="game-screen" class="hidden w-full max-w-lg" style="min-height: 600px;">
+            <div id="game-container" class="p-6">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-lg">Guesses Left: <span id="guesses-left">6</span></p>
+                        <div id="guessed-letters" class="text-lg mt-2">Guessed Letters: </div>
+                        <div id="hint" class="text-lg mt-2 italic">Hint: <span id="hint-text"></span></div>
+                    </div>
+                    <canvas id="hangman-canvas" width="150" height="200" class="mt-2"></canvas>
+                </div>
+                <div id="word-display" class="text-4xl font-mono my-6 tracking-widest"></div>
+                <div id="message" class="text-lg mb-4"></div>
+                <div class="flex justify-center gap-2">
+                    <input type="text" id="guess-input" maxlength="1" placeholder="Enter a letter (A-Z)" class="p-2 rounded text-center bg-gray-700 text-white border border-gray-600 w-48">
+                    <button id="guess-button" class="bg-yellow-400 text-gray-900 px-4 py-2 rounded font-semibold hover:bg-yellow-500">Guess</button>
+                </div>
+                <button id="restart-button" class="bg-blue-600 text-white px-6 py-2 rounded font-semibold hover:bg-blue-700 mt-4 hidden">Play Again</button>
+            </div>
+        </div>
+    </div>
+
+   
+    <div id="how-to-play-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden">
+        <div class="bg-gray-800 p-6 rounded-lg max-w-md">
+            <h2 class="text-2xl font-bold mb-4 text-yellow-400">How to Play</h2>
+            <p class="text-white mb-4">
+                Guess the hidden word one letter at a time. Enter a letter (A-Z) and click "Guess" or press Enter. Use the hint to help you. You have 6 incorrect guesses before the game ends. Correct guesses reveal letters in the word. Win by guessing the word, or lose if you run out of guesses. Click "Play Again" to start a new game.
+            </p>
+            <button id="close-modal-button" class="bg-yellow-400 text-gray-900 px-4 py-2 rounded font-semibold hover:bg-yellow-500">Close</button>
+        </div>
+    </div>
+
+    <script>
+        let gameState = {};
+        const canvas = document.getElementById('hangman-canvas');
+        const ctx = canvas.getContext('2d');
+
+        function drawHangman(stage) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+
+            if (stage >= 1) {
+                ctx.beginPath();
+                ctx.moveTo(20, 180); ctx.lineTo(130, 180); ctx.stroke();
+                ctx.moveTo(100, 180); ctx.lineTo(100, 20); ctx.stroke();
+                ctx.moveTo(100, 20); ctx.lineTo(50, 20); ctx.stroke();
+                ctx.moveTo(50, 20); ctx.lineTo(50, 40); ctx.stroke();
+            }
+            if (stage >= 2) {
+                ctx.beginPath();
+                ctx.arc(50, 60, 20, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            if (stage >= 3) {
+                ctx.beginPath();
+                ctx.moveTo(50, 80); ctx.lineTo(50, 120); ctx.stroke();
+            }
+            if (stage >= 4) {
+                ctx.beginPath();
+                ctx.moveTo(50, 90); ctx.lineTo(30, 110); ctx.stroke();
+            }
+            if (stage >= 5) {
+                ctx.beginPath();
+                ctx.moveTo(50, 90); ctx.lineTo(70, 110); ctx.stroke();
+            }
+            if (stage >= 6) {
+                ctx.beginPath();
+                ctx.moveTo(50, 120); ctx.lineTo(30, 150); ctx.stroke();
+            }
+            if (stage >= 7) {
+                ctx.beginPath();
+                ctx.moveTo(50, 120); ctx.lineTo(70, 150); ctx.stroke();
+            }
+        }
+
+        async function startGame() {
+            const response = await fetch('/start');
+            gameState = await response.json();
+            document.getElementById('guesses-left').textContent = gameState.max_wrong - gameState.wrong_guesses;
+            document.getElementById('guessed-letters').textContent = 'Guessed Letters: ';
+            document.getElementById('hint-text').textContent = gameState.hint;
+            document.getElementById('message').textContent = 'Enter a letter to start guessing!';
+            document.getElementById('guess-input').value = '';
+            document.getElementById('guess-input').disabled = false;
+            document.getElementById('guess-button').disabled = false;
+            document.getElementById('restart-button').classList.add('hidden');
+            document.getElementById('menu-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            drawHangman(1);
+            updateWordDisplay();
+        }
+
+        function updateWordDisplay() {
+            const display = gameState.word.split('').map(letter => 
+                gameState.guessed_letters.includes(letter) ? letter : '_'
+            ).join(' ');
+            document.getElementById('word-display').textContent = display;
+        }
+
+        async function handleGuess() {
+            const guessInput = document.getElementById('guess-input');
+            const guess = guessInput.value.toLowerCase();
+            guessInput.value = '';
+
+            const response = await fetch('/guess', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    guess: guess,
+                    word: gameState.word,
+                    word_letters: gameState.word_letters,
+                    guessed_letters: gameState.guessed_letters,
+                    wrong_guesses: gameState.wrong_guesses
+                })
+            });
+            const result = await response.json();
+
+            gameState.guessed_letters = result.guessed_letters;
+            gameState.wrong_guesses = result.wrong_guesses;
+            gameState.word_letters = result.word_letters;
+
+            document.getElementById('guessed-letters').textContent = 
+                'Guessed Letters: ' + gameState.guessed_letters.sort().join(' ').toUpperCase();
+            document.getElementById('guesses-left').textContent = gameState.max_wrong - gameState.wrong_guesses;
+            document.getElementById('message').textContent = result.message;
+            drawHangman(gameState.wrong_guesses + 1);
+            updateWordDisplay();
+
+            if (gameState.word_letters.length === 0) {
+                document.getElementById('message').textContent = `Congratulations! You guessed the word: ${gameState.word.toUpperCase()}`;
+                endGame();
+            } else if (gameState.wrong_guesses >= gameState.max_wrong) {
+                document.getElementById('message').textContent = `Game Over! The word was: ${gameState.word.toUpperCase()}`;
+                endGame();
+            }
+        }
+
+        function endGame() {
+            document.getElementById('guess-input').disabled = true;
+            document.getElementById('guess-button').disabled = true;
+            document.getElementById('restart-button').classList.remove('hidden');
+        }
+
+        function showMenu() {
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('menu-screen').classList.remove('hidden');
+        }
+
+        function showHowToPlay() {
+            document.getElementById('how-to-play-modal').classList.remove('hidden');
+        }
+
+        function closeHowToPlay() {
+            document.getElementById('how-to-play-modal').classList.add('hidden');
+        }
+
+        
+        document.getElementById('start-game-button').addEventListener('click', startGame);
+        document.getElementById('guess-button').addEventListener('click', handleGuess);
+        document.getElementById('guess-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleGuess();
+        });
+        document.getElementById('restart-button').addEventListener('click', startGame);
+        document.getElementById('home-button').addEventListener('click', showMenu);
+        document.getElementById('how-to-play-button').addEventListener('click', showHowToPlay);
+        document.getElementById('menu-how-to-play-button').addEventListener('click', showHowToPlay);
+        document.getElementById('close-modal-button').addEventListener('click', closeHowToPlay);
+
+      
+        drawHangman(1);
+    </script>
+</body>
+</html>
